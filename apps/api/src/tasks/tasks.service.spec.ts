@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../prisma/prisma.service';
-import { TaskPriorityEnum, TaskStatusEnum } from './task.dto';
+import { TaskCategoryEnum, TaskPriorityEnum, TaskStatusEnum } from './task.dto';
 import { TasksService } from './tasks.service';
 
 describe('TasksService', () => {
@@ -29,6 +29,7 @@ describe('TasksService', () => {
     description: 'Aprender sobre sessões opacas e Keycloak',
     status: TaskStatusEnum.PENDING,
     priority: TaskPriorityEnum.HIGH,
+    category: TaskCategoryEnum.STUDY,
     dueDate: new Date(Date.now() + 86400000),
     ownerId: 'user-uuid-1',
     deletedAt: null,
@@ -55,19 +56,47 @@ describe('TasksService', () => {
   });
 
   describe('create', () => {
-    it('creates task for authenticated user', async () => {
+    it('creates task for authenticated user with category', async () => {
       prisma.task.create.mockResolvedValue(mockTask);
 
       const result = await service.create(mockUser.id, {
         title: 'Estudar Arquitetura BFF',
         description: 'Aprender sobre sessões opacas e Keycloak',
         priority: TaskPriorityEnum.HIGH,
+        category: TaskCategoryEnum.STUDY,
         dueDate: mockTask.dueDate.toISOString(),
       });
 
       expect(result.id).toBe(mockTask.id);
       expect(result.ownerId).toBe(mockUser.id);
-      expect(prisma.task.create).toHaveBeenCalled();
+      expect(result.category).toBe(TaskCategoryEnum.STUDY);
+      expect(prisma.task.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            category: TaskCategoryEnum.STUDY,
+          }),
+        }),
+      );
+    });
+
+    it('defaults category to OTHER when not provided', async () => {
+      prisma.task.create.mockResolvedValue({
+        ...mockTask,
+        category: TaskCategoryEnum.OTHER,
+      });
+
+      const result = await service.create(mockUser.id, {
+        title: 'Tarefa sem categoria explícita',
+      });
+
+      expect(result.category).toBe(TaskCategoryEnum.OTHER);
+      expect(prisma.task.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            category: TaskCategoryEnum.OTHER,
+          }),
+        }),
+      );
     });
 
     it('rejects due date set in the past', async () => {
@@ -95,6 +124,26 @@ describe('TasksService', () => {
           where: expect.objectContaining({
             deletedAt: null,
             ownerId: mockUser.id,
+          }),
+        }),
+      );
+    });
+
+    it('filters tasks by category when category query param is passed', async () => {
+      prisma.task.count.mockResolvedValue(1);
+      prisma.task.findMany.mockResolvedValue([mockTask]);
+
+      const result = await service.findAll(mockUser, {
+        page: 1,
+        pageSize: 10,
+        category: TaskCategoryEnum.STUDY,
+      });
+
+      expect(result.data).toHaveLength(1);
+      expect(prisma.task.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            category: TaskCategoryEnum.STUDY,
           }),
         }),
       );
@@ -151,18 +200,25 @@ describe('TasksService', () => {
   });
 
   describe('update and Business Rules', () => {
-    it('updates task when valid', async () => {
+    it('updates task category when valid', async () => {
       prisma.task.findFirst.mockResolvedValue(mockTask);
       prisma.task.update.mockResolvedValue({
         ...mockTask,
-        title: 'Título Atualizado',
+        category: TaskCategoryEnum.WORK,
       });
 
       const result = await service.update(mockUser, mockTask.id, {
-        title: 'Título Atualizado',
+        category: TaskCategoryEnum.WORK,
       });
 
-      expect(result.title).toBe('Título Atualizado');
+      expect(result.category).toBe(TaskCategoryEnum.WORK);
+      expect(prisma.task.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            category: TaskCategoryEnum.WORK,
+          }),
+        }),
+      );
     });
 
     it('rejects editing field details of a COMPLETED task without reopening it first', async () => {

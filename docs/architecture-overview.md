@@ -90,6 +90,7 @@ erDiagram
         string description
         enum status "PENDING | IN_PROGRESS | COMPLETED | CANCELLED"
         enum priority "LOW | MEDIUM | HIGH | URGENT"
+        enum category "WORK | STUDY | PERSONAL | HEALTH | OTHER"
         datetime dueDate
         uuid ownerId FK
         datetime deletedAt
@@ -119,7 +120,7 @@ erDiagram
 | `PATCH` | `/api/v1/users/:id` | Sessão + CSRF | `ADMIN` | Atualiza dados de um usuário |
 | `PATCH` | `/api/v1/users/:id/status` | Sessão + CSRF | `ADMIN` | Ativa ou desativa um usuário |
 | `PATCH` | `/api/v1/users/me` | Sessão + CSRF | `USER` | Autoatendimento de perfil (nome) |
-| `GET` | `/api/v1/tasks` | Sessão | `USER` | Lista tarefas com paginação, busca e filtros |
+| `GET` | `/api/v1/tasks` | Sessão | `USER` | Lista tarefas com paginação, busca e filtros (status, prioridade, categoria) |
 | `POST` | `/api/v1/tasks` | Sessão + CSRF | `USER` | Cria nova tarefa com ownership |
 | `GET` | `/api/v1/tasks/:id` | Sessão | `USER` | Detalhes da tarefa (owner ou admin) |
 | `PUT` | `/api/v1/tasks/:id` | Sessão + CSRF | `USER` | Atualiza tarefa respeitando regras de transição |
